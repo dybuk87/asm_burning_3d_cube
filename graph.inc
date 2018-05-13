@@ -2,9 +2,9 @@
 
 
 ;------------------------------------------------------------
-;  WE : Brak
-;  WY : Brak
-; info: Ustawia palete
+;  WE : -
+;  WY : -
+; info: Set palete to grayscale
 ;------------------------------------------------------------
 spal:
  mov cx,0
@@ -43,8 +43,7 @@ ret
 
 ;------------------------------------------------------------
 ;  WE : ES - bufor
-;  WY : Brak
-; info: Gasi bufor o 5
+;  WY : all pixel in buffer are substract by 5, and clipped to <0..255>
 ;------------------------------------------------------------
 gas:
  xor di,di
@@ -65,7 +64,7 @@ ret
 ;---------------------------------------------------------
 ;  WE : X1, Y1, X2, Y2, Col : word;
 ;  WY : brak
-; info: Rysuje linie
+; info: Draw line
 ;---------------------------------------------------------
 @c  equ [BP+4]
 @y2 equ [BP+6]
@@ -215,25 +214,25 @@ ret 10
  count DW ?
 
 ;-----------------------------------
-;  WE : DI - TIMAGE;  DX - nazwa
+;  WE : DI - TIMAGE;  DX - file name
 ;  WY : brak
-; info: wczytuje BMP
+; info: load bmp to image in DI
 ;-----------------------------------
-Czytaj_BMP:
+LoadBMP:
  call OpenFile
  mov handle,ax
 
- mov bx,ax
- mov cx,54
- lea dx,Naglowek
- call ReadFile     ; mamy  naglowek :)
+ mov bx, ax
+ mov cx, 54
+ lea dx, Header
+ call ReadFile     ; bmp header loaded
 
  mov bx,handle
  mov cx,1024
  lea dx,pal
- call ReadFile     ; mamy  palete
+ call ReadFile     ; Read palette
 
- mov dx,03C8h
+ mov dx,03C8h    ; setup palette
  xor al,al
  out DX,al
  inc dx
@@ -250,20 +249,20 @@ Czytaj_BMP:
   shr al,2
   out dx,al
   add si,4
- loop @pet_
+ loop @pet_    ; palette loaded
 
  
  push di
-  mov eax,[naglowek.ResX] 
-  mov ebx,[naglowek.ResY]
+  mov eax,[header.ResX] 
+  mov ebx,[header.ResY]
   call GetImg 
  pop di
 
- mov dx,[DI+2] ; rozmiar
+ mov dx,[DI+2] ; image size
  mov cx,[DI+6] ; cx = Y
  mov bx,[DI+4] ; bx = X
- mov ax,[DI]   ; ax - segm
- sub dx,bx     ; rozmiar - bx
+ mov ax,[DI]   ; ax - mem segment
+ sub dx,bx     ; image size - bx ( output start position bmp file are upside down)
  mov di,dx
  push es
  mov es,ax
@@ -274,26 +273,26 @@ Czytaj_BMP:
    mov cx,bx
    mov bx,handle
    lea dx,pal
-   call ReadFile     ; mamy  palete          
+   call ReadFile  ; read scan line to pal buffer
   pop bx
    lea si,pal
    mov cx,bx
    push di
-   rep movsb
+   rep movsb     ; copy pal buff to image on valid position
    pop di
-   sub di,bx
+   sub di,bx     
 
    mov cx,bx
    and cx,3
    jz _ok_
     push bx
      mov bx,4
-     sub bx,cx  ; ile trzeba doczytaæ?
+     sub bx,cx  ; bmp save scanline with padding of 4 bytes
 
      mov cx,bx
      mov bx,handle
      lea dx,pal
-     call ReadFile     ; mamy  palete          
+     call ReadFile    ; read the padding
     pop bx  
   _ok_:
   pop cx
@@ -306,9 +305,9 @@ ret
 ;-----------------------------------
 ;  WE : brak
 ;  WY : brak
-; info: czeka na powrót pionowy
+; info: vsync
 ;-----------------------------------
-czekaj:
+vsync:
   push ax
   push dx
   mov dx, 03dah
@@ -321,9 +320,9 @@ czekaj:
 ret
 
 ;-----------------------------------
-;  WE : AL - kolor;  es - segment
+;  WE : AL - color;  es - segment
 ;  WY : BRAK
-; info: Czyœci segment 
+; info: Clear 64byte segment with cone color
 ;-----------------------------------
 Fill:
  xor di,di
@@ -338,7 +337,7 @@ ret
 ;--------------------------------
 ;  WE : ax - segment
 ;  WY : BRAK
-; info: kopiuje segment na ekran
+; info: copy segment to screen (double buffering)
 ;--------------------------------
 Blit:
  push ds
@@ -355,9 +354,9 @@ Blit:
 ret
 
 ;------------------------------------------------
-;  WE : DI - x;  AX - y;  BL-kolor;  es-segment
+;  WE : DI - x;  AX - y;  BL-Color;  es-segment
 ;  WY : BRAK
-; Info: Rysuje pixel w buforze
+; Info: Draw one pixel with "bl" color on (DI,AX) position 
 ;------------------------------------------------
 plot:
  shl ax,6
@@ -371,7 +370,7 @@ ret
 ;-------------------------------------------------------
 ;  WE : DI - x;  AX - y;  CX - x2 BL-kolor;  es-segment
 ;  WY : BRAK
-; Info: Rysuje poziom¹ linie w buforze
+; Info: Draw horizontal line in buffer
 ;-------------------------------------------------------
 hline:
  cmp di,cx
@@ -391,7 +390,7 @@ ret
 ;-------------------------------------------------------
 ;  WE : DI - x;  AX - y;  CX - y2 BL-kolor;  es-segment
 ;  WY : BRAK
-; Info: Rysuje pionow¹ pixel w buforze
+; Info: Draw vertical line in buffer
 ;-------------------------------------------------------
 vline:
  cmp ax,cx
@@ -414,7 +413,7 @@ ret
 ;-------------------------------
 ;   WE: SI - TIMG; AL - kolor
 ;   WY: brak
-; info: Czyœci rysunek 
+; info: Clear image
 ;-------------------------------
 FILL_IMG:
  push es
@@ -429,18 +428,18 @@ ret
 ;------------------------------------------------
 ;   WE: SI - TIMG; ES - Bufor; DI - X; AX - Y
 ;   WY: Brak
-; info: Kopiuje rysunek do bufora na pozycje(X,Y)
+; info: draw image to buffer on selected position
 ;------------------------------------------------
 IMG_TO_BUF:
  shl ax,6
  add di,ax
  shl ax,2
  add di,ax     ; ES : DI <- cell
- mov ax,[SI]   ; Seg Ÿród³a :)
- mov cx,[SI+6] ; ResY 
- mov BX,[SI+4] ; ResX
- mov DX,320    ; Szerokoœæ buforka
- sub dx,bx     ; DX = 320 - ResX
+ mov ax,[SI]   ; source segment
+ mov cx,[SI+6] ; source ResY 
+ mov BX,[SI+4] ; source ResX
+ mov DX,320    ; Buffer width
+ sub dx,bx     ; DX = 320 - ResX  <- how many bytes to skip to next line
  push ds       
  mov ds,ax
  xor si,si
@@ -455,13 +454,12 @@ IMG_TO_BUF:
 ret
 
 ;---------------------------------------------------
-;   WE: Wspolzendne na stosie x1,y1,x2,y2,x3,y3,col
+;   WE: Draw triangle x1,y1,x2,y2,x3,y3,col
 ;   WY: Brak
-; info: Rysuje trójk¹t
 ;---------------------------------------------------
 ; Name: Poly
 ; WE  : x1, y1, x2, y2, x3, y3 : word;  c:word;
-; STOS:
+; STACK:
 ;       ???? ???? ????  ????  ????  ????  ????  ????  ????
 ;       ^^^^ ^^^^ ^^^^  ^^^^  ^^^^  ^^^^  ^^^^  ^^^^  ^^^^
 ;        BP   IP   C     y3    x3    y2    x2    y1    x1
@@ -726,8 +724,8 @@ ret
 
 ;-------------------------------------------
 ;   WE: brak
-;   WY: Flaga Z = 1 nie naciœniêty klawisz
-; info: Sprawdza czy klepniêto w klawisz 
+;   WY: Flaga Z = 1 key not pressed
+; info: check if key pressed
 ;-------------------------------------------
 KEYPRESSED: 
  push ax
@@ -739,14 +737,14 @@ ret
  ADXL DD ?
  ADXR DD ?
 
-tnaglowek struc
-; naglowek pliku bitmapy
+theader struc
+; bitmap header
  id      DW ?
  size_f  DD ?
  res     DD ?
  Jump    DD ?
 
-; nag. informacyjny
+; bitmap header information part
  Size_ni DD ?
  ResX    DD ?
  ResY    DD ? 
@@ -760,7 +758,7 @@ tnaglowek struc
  Used_c  DD ?
 ends
 
-naglowek TNAGLOWEK ?
-pal      DB 1024 dup(?)
+header THEADER ?
+pal      DB 1024 dup(?) 
 
 include files.inc

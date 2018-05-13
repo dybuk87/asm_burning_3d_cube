@@ -1,12 +1,12 @@
 ;---------------------------------------------------------------------------------
 ; 4 procedury
-; TIMG  DB 8 dup(?) ;    2 bajty seg; 2 bajty resX*resY; 2 bajty ResX; 2 bajty ResY
+; TIMG  DB 8 dup(?) ;  image definition (SEG, SIZE, ResX, RESY) each one 2 bytes
 ;---------------------------------------------------------------------------------
 
 ;------------------------------------------------------------
 ;  WE : Brak
 ;  WY : Brak
-; info: Przygotowuje pamiêæ - niezbêdne dla *.com 
+; info: Prepare memory for *.com file
 ;------------------------------------------------------------
 init_mem proc near
  mov ah,4ah
@@ -18,30 +18,30 @@ endp
 ;---------------------------------------
 ;   WE : DI - TIMG,  AX-ResX, BX-ResY
 ;   WY : Brak
-; info : Przydziela pamiêæ pod rysunek
+; info : Alloc buffer for image Przydziela pamiêæ pod rysunek
 ;        Rysunek to tablica 8 bajtów
 ;---------------------------------------
 GetImg:
  mov [DI+4],AX
- mov [Di+6],BX  ; zapamiêtaj rozdzielczoœæ w TIMG
+ mov [Di+6],BX  ; Save dimension to image
  xor dx,dx      ; DX = 0
  mul bx         ; DX : AX <- ResX,ResY
  or dx,dx       ; 
- jnz _as_no_mem ; jeœli dx>0 to Ÿle!! potrzeba wiêcej pamiêci ni¿ segment :)
+ jnz _as_no_mem ; if dx>0 not ok!! we need more memory than one segment -> OOM
 
- mov [DI+2],ax  ; rozmiar 
- mov bx,ax      ; do bx stary ax
- shr ax,4       ; AX na paragrafy.. czyli bloki 16 bajtowe
- and bx,0Fh     ; jeœli AX/16 dzieli siê bez reszty
- jz _bez_r      ; to ok!
-  inc ax        ; w innym wypadku musimy przydzieliæ o paragraf wiêcej 
- _bez_r:        ; czas przydzialaæ!
+ mov [DI+2],ax  ; save size
+ mov bx,ax      ; backup size
+ shr ax,4       ; split ax to 16 byts section (align to segment) 
+ and bx,0Fh     ; if size divide by 16 then no need to pad
+ jz _bez_r      ; 
+  inc ax        ; we need more memory 
+ _bez_r:        ; start allocation
 
- mov bx, ax     ; ioœc paragrafów do BX
- mov ah,48h     ; numer funckji 
- int 21h        ; przydziel
- jc _as_no_mem  ; bark pamiêci to opier*
-  mov [DI],ax   ; zapamiêtaj Handle
+ mov bx, ax     ; how meny blocks(16bytes)
+ mov ah,48h     ; 
+ int 21h        ; alloc
+ jc _as_no_mem  ; no memory, reurn error message
+  mov [DI],ax   ; if all ok save segment
  ret
 _as_no_mem:
  lea si,_IMG_ERROR_MEM_
@@ -49,8 +49,7 @@ ret
 
 ;------------------------------------------------------------
 ;   WE : brak;	
-;   WY : ax - przydzielony segment(65536-bajt) - AX = 0 b³¹d
-; info : Przydziela pamiec pod segment
+;   WY : return ax as a semgnet pointer to 65536 bytes memory block or 0  if error
 ;------------------------------------------------------------
 alloc_seg proc near
  mov ah,48h
@@ -65,9 +64,9 @@ endp
 
 
 ;------------------------------------------------------------
-;   WE : Si - tekst
+;   WE : Si - tekst pointer
 ;   WY : Brak
-; info : Pisze tekst na ekranie
+; info : show tekst on screen
 ;------------------------------------------------------------
 printf:
  lodsb
@@ -80,4 +79,4 @@ printf:
  papa: 
 ret
 
-_IMG_ERROR_MEM_ DB 'IMG ERROR : B³¹d przydzia³u pamiêci pod IMG ',0
+_IMG_ERROR_MEM_ DB 'IMG ERROR : error memory alloc ',0

@@ -5,7 +5,7 @@
 ;------------------------------------------------------------
 ;   WE : brak
 ;   WY : brak
-; info : ustawia tabele sin, cos
+; info : initialize sin,cos table (precalc for angles)
 ;------------------------------------------------------------
 InitMath3D:
 mov cx,0  
@@ -30,9 +30,9 @@ _tab:
 ret
 
 ;------------------------------------------------------------
-;   WE : CX - ile punktow;  SI - 3D buf;  DI - 2D buf
+;   WE : CX -  how many points;  SI - 3D buf;  DI - 2D buf
 ;   WY : brak
-; info : Przeksztalca punkty 2D na 3D
+; info : Convert 3d points to 2D (perspective)
 ;------------------------------------------------------------
 pers:
  pet:
@@ -60,9 +60,9 @@ ret
 
 
 ;------------------------------------------------------------
-;   WE : SI - 3D buf ;  DI - 3D buf;  AX- ile punktow
+;   WE : SI - 3D buf ;  DI - 3D buf;  AX- points count
 ;   WY : brak
-; info : kopiuje AX punktow z bufora SI do bufora DI
+; info : Copy AX points from  SI to DI buffer 
 ;------------------------------------------------------------
 copy:
   xor dx,dx
@@ -84,9 +84,9 @@ ret
 
 
 ;------------------------------------------------------------
-;   WE : DI - macierz
+;   WE : DI - matrix
 ;   WY : brak
-; info : Macierz jednostkowy
+; info : identity matrix
 ;------------------------------------------------------------
 matrix_reset:
   fldz 
@@ -117,7 +117,7 @@ matrix_reset:
 ;------------------------------------------------------------
 ;   WE : ax - kat (0..255)
 ;   WY : Brak
-; info : Tworzy macierz obrotu dookola osi X
+; info : Create rotation matrix around X axis
 ;------------------------------------------------------------
 matrix_rot_x:
   call matrix_reset
@@ -143,9 +143,9 @@ ret
 
 
 ;------------------------------------------------------------
-;   WE : DI - punkt 3D; SI - macierz; CX - ile punktow
+;   WE : DI - 3d points buffer; SI - matrix; CX - how many points
 ;   WY : Brak
-; info : przeksztalca punkty wzglendem macierzy
+; info : transform points with matrix
 ;------------------------------------------------------------
 transform_m:
   petlatm:
@@ -185,9 +185,9 @@ transform_m:
 ret
 
 ;------------------------------------------------------------
-;   WE : ax - katX (0..255), BX - katY, CX - katZ
+;   WE : ax - angle X (0..255), BX - angle Y, CX - angle Z
 ;   WY : Brak
-; info : Tworzy macierz obrotu dookola osi X, Y i Z
+; info : Create rotation matrix around X, Y, Z axis
 ;------------------------------------------------------------
 matrix_rot_xyz:
  lea si,my_sin
@@ -223,7 +223,7 @@ matrix_rot_xyz:
  fmul cos_z  ; cy*cz
  fstp d [di]
  fstp d [di+4]
- fstp d [di+8] ; pierwszy wiersz ustawiony
+ fstp d [di+8] ; first row done
 
 
  fld sin_x
@@ -242,7 +242,7 @@ matrix_rot_xyz:
  fsub        ; sx*sy*cz-cx*sz
  fstp d [di+12]
  fstp d [di+16]
- fstp d [di+20] ; drugi wiersz ustawiony 
+ fstp d [di+20] ; second row done
 
  fld cos_x
  fmul cos_y  ; cx*cy
@@ -260,7 +260,7 @@ matrix_rot_xyz:
  fadd        ; cx*sy*cz+sx*sz
  fstp d [di+24]
  fstp d [di+28]
- fstp d [di+32] ; trzeci wiersz ustawiony 
+ fstp d [di+32] ; third row done
 ret
 
 ; stale pomocnicze 

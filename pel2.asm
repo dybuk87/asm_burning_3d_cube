@@ -3,16 +3,16 @@
 .code 
  org 100h 
   start:
- ; Czêœæ Startowa....
+
   call init_mem
   mov ax,cs
   mov ds,ax
   call Get_Buf
 
   mov ax,buf1
-  mov es,ax    ; es bêdzie na sta³ê buforem 1
-  mov ax,0013h ;\
-  int 10h      ;/ Tryb graficzny 13h
+  mov es,ax    ; es permanently locked as buf 1
+  mov ax,0013h 
+  int 10h      
   
   call spal
   call initMath3D
@@ -114,9 +114,9 @@ lea si,figure
 dec cx
 jnz @rys_
 
-call czekaj
-mov ax,es    ; w Es mam adres naszewo bufora :D
-call blit    ; Teraz Bufor na ekran 
+call vsync
+mov ax,es    ;  in es we have ptr to buffer
+call blit    ;  blit buffer to screen
 
 call gas
 call blur
@@ -144,10 +144,10 @@ call stop_stoper
   call printf
 
   xor ax,ax
-  int 16h           ; czyscy bufor po wyjscu z programu
+  int 16h         
 
   xor ax,ax
-  int 16h           ; teraz czzeka na klawisz...
+  int 16h         
 
   mov ah,4ch
   int 21h
@@ -165,7 +165,7 @@ Get_Buf:
  error_:
   mov ah,4ch
   int 21h  
-ret ; tak ¿eby by³o all ok 
+ret 
 
 piszLINT:
   push eax
@@ -235,8 +235,8 @@ blur:
  ret
 
 
-; SI - punkty
-; CX - ile P
+; SI - points
+; CX - points count
 draw:
   pet2:
    mov ax,w [si+2]
@@ -262,7 +262,7 @@ temp  DB 20 dup(?)
 nazwa DB 'logo.bmp',0
 okkk DB 'OK $'
 buf1 DW ?
-IMG  DW 4 dup (?)  ; 8 bajtów na ptr do rysunku ..
+IMG  DW 4 dup (?)  ; 8 bytes for image definition
 x1   DW 0
 x2   DW 0
 x3   DW 0
@@ -286,7 +286,7 @@ point  DD  -5.0, -5.0, -5.0
        DD  -5.0, -5.0,  5.0
        DD   5.0, -5.0,  5.0
        DD   5.0,  5.0,  5.0 
-       DD  -5.0,  5.0,  5.0    ; 8 wierzcholkow szesciana...
+       DD  -5.0,  5.0,  5.0    ; 8 vertexes
 
        
 figure DW  0, 1, 2
@@ -300,7 +300,7 @@ figure DW  0, 1, 2
        DW  4, 5, 1
        DW  4, 1, 0
        DW  3, 2, 6
-       DW  3, 6, 7  ; szescian sklada siem z 12 trojkataw(6 scian)
+       DW  3, 6, 7  ; 12 faces (2 face for one cube side)
        
 
     
@@ -319,7 +319,7 @@ destPal DB 256*3    dup(?)
         DB  13,10,"| AUTOR  : Dybuk87                       |"        
         DB  13,10,"+----------------------------------------+"
         DB  13,10
-        DB  13,10,"     Nacisnij cos.... :) ",0
+        DB  13,10,"     Press any key ",0
 
          
 end start

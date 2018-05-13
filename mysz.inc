@@ -2,10 +2,10 @@
 
 ;-----------------------------------------
 ;   WE: Brak
-;   WY: BX - przyciski; CX - X; DX - Y
-; info: Pyta o pozycje myszki na ekranie
+;   WY: BX - button state; CX - X; DX - Y
+; info: Get mouse position and button state
 ;-----------------------------------------
-pozycja_myszy:
+MousePos:
  mov ax,03
  int 33h
  shr cx,1
@@ -15,11 +15,11 @@ ret
 ;-----------------------------------------
 ;   WE: Brak
 ;   WY: Brak
-; info: rysuje kursor jako "c(w)elownik"
+; info: draw simple cursor as cross
 ;-----------------------------------------
-Red_Cross:
+RedCross:
  pusha
- call pozycja_myszy
+ call MousePos
  push cx
 
  mov  ax,dx
@@ -40,10 +40,10 @@ ret
 ;----------------------------------------------
 ;   WE: SI - TIMG; ES - Bufor; 
 ;   WY: Brak
-; info: Rysuje myszke jako rysunek (np. z BMP)
+; info: Draw mouse as Image
 ;----------------------------------------------
-Pokaz_mysz:
- call pozycja_myszy
+ShowMouse:
+ call MousePos
  mov di,cx
  mov ax,dx
  call IMG_TO_BUF
